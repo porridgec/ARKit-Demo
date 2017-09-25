@@ -81,4 +81,18 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Reset tracking and/or remove existing anchors if consistent tracking is required
         
     }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        guard let touch = touches.first else { return }
+        let results = sceneView.hitTest(touch.location(in: sceneView), types: [ARHitTestResult.ResultType.featurePoint])
+        guard let hitFeature = results.last else { return }
+        let hitTransform = SCNMatrix4(hitFeature.worldTransform)
+        let hitPosition = SCNVector3.init(x: hitTransform.m41,
+                                          y: hitTransform.m42,
+                                          z: hitTransform.m43)
+        let treeClone = treeNode!.clone()
+        treeClone.position = hitPosition
+        sceneView.scene.rootNode.addChildNode(treeClone)
+    }
 }
