@@ -13,6 +13,7 @@ import ARKit
 class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
+    var treeNode: SCNNode?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -24,7 +25,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.showsStatistics = true
         
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        let scene = SCNScene(named: "art.scnassets/Lowpoly_tree_sample.dae")!
+        treeNode = scene.rootNode.childNode(withName: "Tree_lp_11", recursively: true)
+        treeNode?.position.z = -1
+
         
         // Set the scene to the view
         sceneView.scene = scene
