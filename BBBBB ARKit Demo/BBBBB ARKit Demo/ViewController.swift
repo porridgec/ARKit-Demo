@@ -10,6 +10,11 @@ import UIKit
 import SceneKit
 import ARKit
 
+struct CollisionCategory {
+    static let plane = 1 << 0
+    static let box = 1 << 1
+}
+
 class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
@@ -27,8 +32,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a new scene
         let scene = SCNScene(named: "art.scnassets/Lowpoly_tree_sample.dae")!
-        treeNode = scene.rootNode.childNode(withName: "Tree_lp_11", recursively: true)
-        treeNode?.position.z = -1
+//        treeNode = scene.rootNode.childNode(withName: "Tree_lp_11", recursively: true)
+//        treeNode?.position.z = -1
 
         
         // Set the scene to the view
@@ -85,6 +90,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         planeNode?.position = SCNVector3.init(x: planeAnchor.center.x,
                                              y: 0,
                                              z: planeAnchor.center.z)
+        planeNode?.physicsBody = SCNPhysicsBody.init(type: .kinematic, shape: SCNPhysicsShape.init(geometry: planeBox, options: nil))
+        planeNode?.physicsBody?.categoryBitMask = CollisionCategory.plane
+        planeNode?.physicsBody?.contactTestBitMask = CollisionCategory.box
         
         node.addChildNode(planeNode!)
     }
@@ -120,14 +128,50 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
         guard let touch = touches.first else { return }
-        let results = sceneView.hitTest(touch.location(in: sceneView), types: [ARHitTestResult.ResultType.featurePoint])
+        let results = sceneView.hitTest(touch.location(in: sceneView), types: [ARHitTestResult.ResultType.existingPlaneUsingExtent])
         guard let hitFeature = results.last else { return }
-        let hitTransform = SCNMatrix4(hitFeature.worldTransform)
-        let hitPosition = SCNVector3.init(x: hitTransform.m41,
-                                          y: hitTransform.m42,
-                                          z: hitTransform.m43)
-        let treeClone = treeNode!.clone()
-        treeClone.position = hitPosition
-        sceneView.scene.rootNode.addChildNode(treeClone)
+        insertGeometry(hitResult: hitFeature)
+//        let hitTransform = SCNMatrix4(hitFeature.worldTransform)
+//        let hitPosition = SCNVector3.init(x: hitTransform.m41,
+//                                          y: hitTransform.m42,
+//                                          z: hitTransform.m43)
+//        let treeClone = treeNode!.clone()
+//        treeClone.position = hitPosition
+//        sceneView.scene.rootNode.addChildNode(treeClone)
+    }
+    
+    func insertGeometry(hitResult: ARHitTestResult) {
+        let dimension: CGFloat = 0.1
+        let cube = SCNBox.init(width: dimension,
+                               height: dimension,
+                               length: dimension,
+                               chamferRadius: 0)
+        let node = SCNNode.init(geometry: cube)
+        node.physicsBody = SCNPhysicsBody.init(type: .dynamic,
+                                               shape: SCNPhysicsShape.init(geometry: cube,
+                                                                           options: nil))
+        node.physicsBody?.mass = 2.0
+        node.physicsBody?.categoryBitMask = CollisionCategory.box
+        
+        let insertionYOffset: Float = 0.5
+        node.position = SCNVector3.init(x: hitResult.worldTransform.columns.3.x,
+                                        y: hitResult.worldTransform.columns.3.y + insertionYOffset,
+                                        z: hitResult.worldTransform.columns.3.z)
+        
+        sceneView.scene.rootNode.addChildNode(node)
+    }
+}
+
+extension ViewController: SCNPhysicsContactDelegate {
+    func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
+        let mask = contact.nodeA.categoryBitMask | contact.nodeB.categoryBitMask
+        
+        if mask == (CollisionCategory.plane | CollisionCategory.box) {
+            if contact.nodeA.physicsBody?.categoryBitMask == CollisionCategory.plane {
+                contact.nodeB.removeFromParentNode()
+            } else {
+                contact.nodeA.removeFromParentNode()
+            }
+        }
     }
 }
