@@ -14,6 +14,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     var treeNode: SCNNode?
+    var planeNode: SCNNode?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,9 +40,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        configuration.planeDetection = [.horizontal]
+        configuration.isLightEstimationEnabled = true
 
         // Run the view's session
         sceneView.session.run(configuration)
+        sceneView.debugOptions = [ARSCNDebugOptions.showWorldOrigin, ARSCNDebugOptions.showFeaturePoints]
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -66,6 +70,37 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         return node
     }
 */
+    
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        print("```````````plane detected````````````")
+        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+        
+        let planeBox = SCNBox.init(width: CGFloat(planeAnchor.extent.x),
+                                   height: 0,
+                                   length: CGFloat(planeAnchor.extent.z),
+                                   chamferRadius: 0)
+        planeBox.firstMaterial?.diffuse.contents = UIColor.red
+        
+        planeNode = SCNNode.init(geometry: planeBox)
+        planeNode?.position = SCNVector3.init(x: planeAnchor.center.x,
+                                             y: 0,
+                                             z: planeAnchor.center.z)
+        
+        node.addChildNode(planeNode!)
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        print("```````````plane updated````````````")
+        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+        planeNode?.geometry = SCNBox.init(width: CGFloat(planeAnchor.extent.x),
+                                          height: 0,
+                                          length: CGFloat(planeAnchor.extent.z),
+                                          chamferRadius: 0)
+        planeNode?.geometry?.firstMaterial?.diffuse.contents = UIColor.red
+        planeNode?.position = SCNVector3.init(x: planeAnchor.center.x,
+                                              y: 0,
+                                              z: planeAnchor.center.z)
+    }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
